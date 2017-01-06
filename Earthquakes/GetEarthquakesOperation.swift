@@ -28,7 +28,7 @@ class GetEarthquakesOperation: GroupOperation {
     init(context: NSManagedObjectContext, completionHandler: Void -> Void) {
         let cachesFolder = try! NSFileManager.defaultManager().URLForDirectory(.CachesDirectory, inDomain: .UserDomainMask, appropriateForURL: nil, create: true)
 
-        let cacheFile = cachesFolder.URLByAppendingPathComponent("earthquakes.json")
+        let cacheFile = cachesFolder.URLByAppendingPathComponent("earthquakes.json")!
         
         /*
             This operation is made of three child operations:

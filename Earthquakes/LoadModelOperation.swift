@@ -59,7 +59,7 @@ class LoadModelOperation: Operation {
                 is why it's in the Caches folder). If we fail to add it, we can
                 delete it and try again.
             */
-            destroyStore(persistentStoreCoordinator, atURL: storeURL)
+            destroyStore(persistentStoreCoordinator, atURL: storeURL!)
             error = createStore(persistentStoreCoordinator, atURL: storeURL)
         }
         
