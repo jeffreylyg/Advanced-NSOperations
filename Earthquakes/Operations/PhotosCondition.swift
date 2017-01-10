@@ -18,21 +18,21 @@ struct PhotosCondition: OperationCondition {
     
     init() { }
     
-    func dependencyForOperation(operation: Operation) -> NSOperation? {
+    func dependencyForOperation(_ operation: Operation) -> Foundation.Operation? {
         return PhotosPermissionOperation()
     }
     
-    func evaluateForOperation(operation: Operation, completion: OperationConditionResult -> Void) {
+    func evaluateForOperation(_ operation: Operation, completion: @escaping (OperationConditionResult) -> Void) {
         switch PHPhotoLibrary.authorizationStatus() {
-            case .Authorized:
-                completion(.Satisfied)
+            case .authorized:
+                completion(.satisfied)
 
             default:
-                let error = NSError(code: .ConditionFailed, userInfo: [
-                    OperationConditionKey: self.dynamicType.name
+                let error = NSError(code: .conditionFailed, userInfo: [
+                    OperationConditionKey: type(of: self).name
                 ])
 
-                completion(.Failed(error))
+                completion(.failed(error))
         }
     }
 }
@@ -50,8 +50,8 @@ private class PhotosPermissionOperation: Operation {
     
     override func execute() {
         switch PHPhotoLibrary.authorizationStatus() {
-            case .NotDetermined:
-                dispatch_async(dispatch_get_main_queue()) {
+            case .notDetermined:
+                DispatchQueue.main.async {
                     PHPhotoLibrary.requestAuthorization { status in
                         self.finish()
                     }

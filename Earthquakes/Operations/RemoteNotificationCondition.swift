@@ -14,8 +14,8 @@ private let RemoteNotificationQueue = OperationQueue()
 private let RemoteNotificationName = "RemoteNotificationPermissionNotification"
 
 private enum RemoteRegistrationResult {
-    case Token(NSData)
-    case Error(NSError)
+    case token(Data)
+    case error(NSError)
 }
 
 /// A condition for verifying that the app has the ability to receive push notifications.
@@ -23,14 +23,14 @@ struct RemoteNotificationCondition: OperationCondition {
     static let name = "RemoteNotification"
     static let isMutuallyExclusive = false
     
-    static func didReceiveNotificationToken(token: NSData) {
-        NSNotificationCenter.defaultCenter().postNotificationName(RemoteNotificationName, object: nil, userInfo: [
+    static func didReceiveNotificationToken(_ token: Data) {
+        NotificationCenter.default.post(name: Notification.Name(rawValue: RemoteNotificationName), object: nil, userInfo: [
             "token": token
         ])
     }
     
-    static func didFailToRegister(error: NSError) {
-        NSNotificationCenter.defaultCenter().postNotificationName(RemoteNotificationName, object: nil, userInfo: [
+    static func didFailToRegister(_ error: NSError) {
+        NotificationCenter.default.post(name: Notification.Name(rawValue: RemoteNotificationName), object: nil, userInfo: [
             "error": error
         ])
     }
@@ -41,27 +41,27 @@ struct RemoteNotificationCondition: OperationCondition {
         self.application = application
     }
     
-    func dependencyForOperation(operation: Operation) -> NSOperation? {
+    func dependencyForOperation(_ operation: Operation) -> Foundation.Operation? {
         return RemoteNotificationPermissionOperation(application: application, handler: { _ in })
     }
     
-    func evaluateForOperation(operation: Operation, completion: OperationConditionResult -> Void) {
+    func evaluateForOperation(_ operation: Operation, completion: @escaping (OperationConditionResult) -> Void) {
         /*
             Since evaluation requires executing an operation, use a private operation
             queue.
         */
         RemoteNotificationQueue.addOperation(RemoteNotificationPermissionOperation(application: application) { result in
             switch result {
-                case .Token(_):
-                    completion(.Satisfied)
+                case .token(_):
+                    completion(.satisfied)
 
-                case .Error(let underlyingError):
-                    let error = NSError(code: .ConditionFailed, userInfo: [
-                        OperationConditionKey: self.dynamicType.name,
+                case .error(let underlyingError):
+                    let error = NSError(code: .conditionFailed, userInfo: [
+                        OperationConditionKey: type(of: self).name,
                         NSUnderlyingErrorKey: underlyingError
                     ])
 
-                    completion(.Failed(error))
+                    completion(.failed(error))
             }
         })
     }
@@ -80,9 +80,9 @@ struct RemoteNotificationCondition: OperationCondition {
 */
 private class RemoteNotificationPermissionOperation: Operation {
     let application: UIApplication
-    private let handler: RemoteRegistrationResult -> Void
+    fileprivate let handler: (RemoteRegistrationResult) -> Void
     
-    private init(application: UIApplication, handler: RemoteRegistrationResult -> Void) {
+    fileprivate init(application: UIApplication, handler: @escaping (RemoteRegistrationResult) -> Void) {
         self.application = application
         self.handler = handler
 
@@ -96,25 +96,25 @@ private class RemoteNotificationPermissionOperation: Operation {
     }
     
     override func execute() {
-        dispatch_async(dispatch_get_main_queue()) {
-            let notificationCenter = NSNotificationCenter.defaultCenter()
+        DispatchQueue.main.async {
+            let notificationCenter = NotificationCenter.default
             
-            notificationCenter.addObserver(self, selector: "didReceiveResponse:", name: RemoteNotificationName, object: nil)
+            notificationCenter.addObserver(self, selector: #selector(RemoteNotificationPermissionOperation.didReceiveResponse(_:)), name: NSNotification.Name(rawValue: RemoteNotificationName), object: nil)
             
             self.application.registerForRemoteNotifications()
         }
     }
     
-    @objc func didReceiveResponse(notification: NSNotification) {
-        NSNotificationCenter.defaultCenter().removeObserver(self)
+    @objc func didReceiveResponse(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self)
         
         let userInfo = notification.userInfo
 
-        if let token = userInfo?["token"] as? NSData {
-            handler(.Token(token))
+        if let token = userInfo?["token"] as? Data {
+            handler(.token(token))
         }
         else if let error = userInfo?["error"] as? NSError {
-            handler(.Error(error))
+            handler(.error(error))
         }
         else {
             fatalError("Received a notification without a token and without an error.")

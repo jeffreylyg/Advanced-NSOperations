@@ -6,6 +6,7 @@ Abstract:
 This file sets up the operations to download and parse earthquake data. It will also decide to display an error message, if appropriate.
 */
 
+import Foundation
 import CoreData
 
 /// A composite `Operation` to both download and parse earthquake data.
@@ -15,7 +16,7 @@ class GetEarthquakesOperation: GroupOperation {
     let downloadOperation: DownloadEarthquakesOperation
     let parseOperation: ParseEarthquakesOperation
    
-    private var hasProducedAlert = false
+    fileprivate var hasProducedAlert = false
     
     /**
         - parameter context: The `NSManagedObjectContext` into which the parsed
@@ -25,10 +26,10 @@ class GetEarthquakesOperation: GroupOperation {
                                        parsing are complete. This handler will be
                                        invoked on an arbitrary queue.
     */
-    init(context: NSManagedObjectContext, completionHandler: Void -> Void) {
-        let cachesFolder = try! NSFileManager.defaultManager().URLForDirectory(.CachesDirectory, inDomain: .UserDomainMask, appropriateForURL: nil, create: true)
+    init(context: NSManagedObjectContext, completionHandler: @escaping (Void) -> Void) {
+        let cachesFolder = try! FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
 
-        let cacheFile = cachesFolder.URLByAppendingPathComponent("earthquakes.json")!
+        let cacheFile = cachesFolder.appendingPathComponent("earthquakes.json")
         
         /*
             This operation is made of three child operations:
@@ -39,7 +40,7 @@ class GetEarthquakesOperation: GroupOperation {
         downloadOperation = DownloadEarthquakesOperation(cacheFile: cacheFile)
         parseOperation = ParseEarthquakesOperation(cacheFile: cacheFile, context: context)
         
-        let finishOperation = NSBlockOperation(block: completionHandler)
+        let finishOperation = Foundation.BlockOperation(block: completionHandler)
         
         // These operations must be executed in order
         parseOperation.addDependency(downloadOperation)
@@ -50,13 +51,13 @@ class GetEarthquakesOperation: GroupOperation {
         name = "Get Earthquakes"
     }
     
-    override func operationDidFinish(operation: NSOperation, withErrors errors: [NSError]) {
-        if let firstError = errors.first where (operation === downloadOperation || operation === parseOperation) {
+    override func operationDidFinish(_ operation: Foundation.Operation, withErrors errors: [NSError]) {
+        if let firstError = errors.first, (operation === downloadOperation || operation === parseOperation) {
             produceAlert(firstError)
         }
     }
     
-    private func produceAlert(error: NSError) {
+    fileprivate func produceAlert(_ error: NSError) {
         /*
             We only want to show the first error, since subsequent errors might
             be caused by the first.
@@ -68,14 +69,14 @@ class GetEarthquakesOperation: GroupOperation {
         let errorReason = (error.domain, error.code, error.userInfo[OperationConditionKey] as? String)
         
         // These are examples of errors for which we might choose to display an error to the user
-        let failedReachability = (OperationErrorDomain, OperationErrorCode.ConditionFailed, ReachabilityCondition.name)
+        let failedReachability = (OperationErrorDomain, OperationErrorCode.conditionFailed, ReachabilityCondition.name)
         
         let failedJSON = (NSCocoaErrorDomain, NSPropertyListReadCorruptError, nil as String?)
 
         switch errorReason {
             case failedReachability:
                 // We failed because the network isn't reachable.
-                let hostURL = error.userInfo[ReachabilityCondition.hostKey] as! NSURL
+                let hostURL = error.userInfo[ReachabilityCondition.hostKey] as! URL
                 
                 alert.title = "Unable to Connect"
                 alert.message = "Cannot connect to \(hostURL.host!). Make sure your device is connected to the internet and try again."

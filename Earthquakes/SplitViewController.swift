@@ -14,14 +14,14 @@ class SplitViewController: UISplitViewController {
     override func awakeFromNib() {
         super.awakeFromNib()
     
-        preferredDisplayMode = .AllVisible
+        preferredDisplayMode = .allVisible
         
         delegate = self
     }
 }
 
 extension SplitViewController: UISplitViewControllerDelegate {
-    func splitViewController(splitViewController: UISplitViewController, collapseSecondaryViewController secondaryViewController: UIViewController, ontoPrimaryViewController primaryViewController: UIViewController) -> Bool {
+    func splitViewController(_ splitViewController: UISplitViewController, collapseSecondary secondaryViewController: UIViewController, onto primaryViewController: UIViewController) -> Bool {
         guard let navigation = secondaryViewController as? UINavigationController else { return false }
         guard let detail = navigation.viewControllers.first as? EarthquakeTableViewController else { return false }
         

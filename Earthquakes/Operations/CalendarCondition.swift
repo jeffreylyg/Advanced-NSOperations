@@ -21,23 +21,23 @@ struct CalendarCondition: OperationCondition {
         self.entityType = entityType
     }
     
-    func dependencyForOperation(operation: Operation) -> NSOperation? {
+    func dependencyForOperation(_ operation: Operation) -> Foundation.Operation? {
         return CalendarPermissionOperation(entityType: entityType)
     }
     
-    func evaluateForOperation(operation: Operation, completion: OperationConditionResult -> Void) {
-        switch EKEventStore.authorizationStatusForEntityType(entityType) {
-            case .Authorized:
-                completion(.Satisfied)
+    func evaluateForOperation(_ operation: Operation, completion: @escaping (OperationConditionResult) -> Void) {
+        switch EKEventStore.authorizationStatus(for: entityType) {
+            case .authorized:
+                completion(.satisfied)
 
             default:
                 // We are not authorized to access entities of this type.
-                let error = NSError(code: .ConditionFailed, userInfo: [
-                    OperationConditionKey: self.dynamicType.name,
-                    self.dynamicType.entityTypeKey: entityType.rawValue
+                let error = NSError(code: .conditionFailed, userInfo: [
+                    OperationConditionKey: type(of: self).name,
+                    type(of: self).entityTypeKey: entityType.rawValue
                 ])
                 
-                completion(.Failed(error))
+                completion(.failed(error))
         }
     }
 }
@@ -63,12 +63,12 @@ private class CalendarPermissionOperation: Operation {
     }
     
     override func execute() {
-        let status = EKEventStore.authorizationStatusForEntityType(entityType)
+        let status = EKEventStore.authorizationStatus(for: entityType)
         
         switch status {
-            case .NotDetermined:
-                dispatch_async(dispatch_get_main_queue()) {
-                    SharedEventStore.requestAccessToEntityType(self.entityType) { granted, error in
+            case .notDetermined:
+                DispatchQueue.main.async {
+                    SharedEventStore.requestAccess(to: self.entityType) { granted, error in
                         self.finish()
                     }
                 }

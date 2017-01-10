@@ -15,11 +15,11 @@ import CoreData
 class LoadModelOperation: Operation {
     // MARK: Properties
 
-    let loadHandler: NSManagedObjectContext -> Void
+    let loadHandler: (NSManagedObjectContext) -> Void
     
     // MARK: Initialization
     
-    init(loadHandler: NSManagedObjectContext -> Void) {
+    init(loadHandler: @escaping (NSManagedObjectContext) -> Void) {
         self.loadHandler = loadHandler
 
         super.init()
@@ -34,9 +34,9 @@ class LoadModelOperation: Operation {
             get the Caches directory, then your entire sandbox is broken and
             there's nothing we can possibly do to fix it.
         */
-        let cachesFolder = try! NSFileManager.defaultManager().URLForDirectory(.CachesDirectory, inDomain: .UserDomainMask, appropriateForURL: nil, create: true)
+        let cachesFolder = try! FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         
-        let storeURL = cachesFolder.URLByAppendingPathComponent("earthquakes.sqlite")
+        let storeURL = cachesFolder.appendingPathComponent("earthquakes.sqlite")
         
         /*
             Force unwrap this model, because this would only fail if we haven't
@@ -44,11 +44,11 @@ class LoadModelOperation: Operation {
             we deserve to crash. Plus, there's really no easy way to recover from
             a missing model without reconstructing it programmatically
         */
-        let model = NSManagedObjectModel.mergedModelFromBundles(nil)!
+        let model = NSManagedObjectModel.mergedModel(from: nil)!
 
         let persistentStoreCoordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
         
-        let context = NSManagedObjectContext(concurrencyType: .MainQueueConcurrencyType)
+        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         context.persistentStoreCoordinator = persistentStoreCoordinator
         
         var error = createStore(persistentStoreCoordinator, atURL: storeURL)
@@ -59,7 +59,7 @@ class LoadModelOperation: Operation {
                 is why it's in the Caches folder). If we fail to add it, we can
                 delete it and try again.
             */
-            destroyStore(persistentStoreCoordinator, atURL: storeURL!)
+            destroyStore(persistentStoreCoordinator, atURL: storeURL)
             error = createStore(persistentStoreCoordinator, atURL: storeURL)
         }
         
@@ -77,10 +77,10 @@ class LoadModelOperation: Operation {
         finishWithError(error)
     }
     
-    private func createStore(persistentStoreCoordinator: NSPersistentStoreCoordinator, atURL URL: NSURL?, type: String = NSSQLiteStoreType) -> NSError? {
+    fileprivate func createStore(_ persistentStoreCoordinator: NSPersistentStoreCoordinator, atURL URL: Foundation.URL?, type: String = NSSQLiteStoreType) -> NSError? {
         var error: NSError?
         do {
-            let _ = try persistentStoreCoordinator.addPersistentStoreWithType(type, configuration: nil, URL: URL, options: nil)
+            let _ = try persistentStoreCoordinator.addPersistentStore(ofType: type, configurationName: nil, at: URL, options: nil)
         }
         catch let storeError as NSError {
             error = storeError
@@ -89,15 +89,15 @@ class LoadModelOperation: Operation {
         return error
     }
     
-    private func destroyStore(persistentStoreCoordinator: NSPersistentStoreCoordinator, atURL URL: NSURL, type: String = NSSQLiteStoreType) {
+    fileprivate func destroyStore(_ persistentStoreCoordinator: NSPersistentStoreCoordinator, atURL URL: Foundation.URL, type: String = NSSQLiteStoreType) {
         do {
-            let _ = try persistentStoreCoordinator.destroyPersistentStoreAtURL(URL, withType: type, options: nil)
+            let _ = try persistentStoreCoordinator.destroyPersistentStore(at: URL, ofType: type, options: nil)
         }
         catch { }
     }
     
-    override func finished(errors: [NSError]) {
-        guard let firstError = errors.first where userInitiated else { return }
+    override func finished(_ errors: [NSError]) {
+        guard let firstError = errors.first, userInitiated else { return }
 
         /*
             We failed to load the model on a user initiated operation try and present
@@ -111,7 +111,7 @@ class LoadModelOperation: Operation {
         alert.message = "An error occurred while loading the database. \(firstError.localizedDescription). Please try again later."
         
         // No custom action for this button.
-        alert.addAction("Retry Later", style: .Cancel)
+        alert.addAction("Retry Later", style: .cancel)
         
         // Declare this as a local variable to avoid capturing self in the closure below.
         let handler = loadHandler

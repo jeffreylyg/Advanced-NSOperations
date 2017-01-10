@@ -18,10 +18,10 @@ struct UserNotificationCondition: OperationCondition {
     
     enum Behavior {
         /// Merge the new `UIUserNotificationSettings` with the `currentUserNotificationSettings`.
-        case Merge
+        case merge
 
         /// Replace the `currentUserNotificationSettings` with the new `UIUserNotificationSettings`.
-        case Replace
+        case replace
     }
     
     static let name = "UserNotification"
@@ -48,33 +48,33 @@ struct UserNotificationCondition: OperationCondition {
             `application`. You may also specify `.Replace`, which means the `settings`
             will overwrite the exisiting settings.
     */
-    init(settings: UIUserNotificationSettings, application: UIApplication, behavior: Behavior = .Merge) {
+    init(settings: UIUserNotificationSettings, application: UIApplication, behavior: Behavior = .merge) {
         self.settings = settings
         self.application = application
         self.behavior = behavior
     }
     
-    func dependencyForOperation(operation: Operation) -> NSOperation? {
+    func dependencyForOperation(_ operation: Operation) -> Foundation.Operation? {
         return UserNotificationPermissionOperation(settings: settings, application: application, behavior: behavior)
     }
     
-    func evaluateForOperation(operation: Operation, completion: OperationConditionResult -> Void) {
+    func evaluateForOperation(_ operation: Operation, completion: @escaping (OperationConditionResult) -> Void) {
         let result: OperationConditionResult
         
-        let current = application.currentUserNotificationSettings()
+        let current = application.currentUserNotificationSettings
 
         switch (current, settings)  {
             case (let current?, let settings) where current.contains(settings):
-                result = .Satisfied
+                result = .satisfied
 
             default:
-                let error = NSError(code: .ConditionFailed, userInfo: [
-                    OperationConditionKey: self.dynamicType.name,
-                    self.dynamicType.currentSettings: current ?? NSNull(),
-                    self.dynamicType.desiredSettings: settings
+                let error = NSError(code: .conditionFailed, userInfo: [
+                    OperationConditionKey: type(of: self).name,
+                    type(of: self).currentSettings: current ?? NSNull(),
+                    type(of: self).desiredSettings: settings
                 ])
                 
-                result = .Failed(error)
+                result = .failed(error)
         }
         
         completion(result)
@@ -101,13 +101,13 @@ private class UserNotificationPermissionOperation: Operation {
     }
     
     override func execute() {
-        dispatch_async(dispatch_get_main_queue()) {
-            let current = self.application.currentUserNotificationSettings()
+        DispatchQueue.main.async {
+            let current = self.application.currentUserNotificationSettings
             
             let settingsToRegister: UIUserNotificationSettings
             
             switch (current, self.behavior) {
-                case (let currentSettings?, .Merge):
+                case (let currentSettings?, .merge):
                     settingsToRegister = currentSettings.settingsByMerging(self.settings)
 
                 default:

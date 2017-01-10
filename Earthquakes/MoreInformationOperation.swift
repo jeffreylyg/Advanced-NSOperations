@@ -13,11 +13,11 @@ import SafariServices
 class MoreInformationOperation: Operation {
     // MARK: Properties
 
-    let URL: NSURL
+    let URL: Foundation.URL
     
     // MARK: Initialization
     
-    init(URL: NSURL) {
+    init(URL: Foundation.URL) {
         self.URL = URL
 
         super.init()
@@ -28,16 +28,16 @@ class MoreInformationOperation: Operation {
     // MARK: Overrides
  
     override func execute() {
-        dispatch_async(dispatch_get_main_queue()) {
+        DispatchQueue.main.async {
             self.showSafariViewController()
         }
     }
     
-    private func showSafariViewController() {
-        if let context = UIApplication.sharedApplication().keyWindow?.rootViewController {
-            let safari = SFSafariViewController(URL: URL, entersReaderIfAvailable: false)
+    fileprivate func showSafariViewController() {
+        if let context = UIApplication.shared.keyWindow?.rootViewController {
+            let safari = SFSafariViewController(url: URL, entersReaderIfAvailable: false)
             safari.delegate = self
-            context.presentViewController(safari, animated: true, completion: nil)
+            context.present(safari, animated: true, completion: nil)
         }
         else {
             finish()
@@ -46,8 +46,8 @@ class MoreInformationOperation: Operation {
 }
 
 extension MoreInformationOperation: SFSafariViewControllerDelegate {
-    func safariViewControllerDidFinish(controller: SFSafariViewController) {
-        controller.dismissViewControllerAnimated(true) {
+    func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        controller.dismiss(animated: true) {
             self.finish()
         }
     }

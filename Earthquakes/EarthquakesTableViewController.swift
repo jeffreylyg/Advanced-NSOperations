@@ -13,7 +13,7 @@ import CloudKit
 class EarthquakesTableViewController: UITableViewController {
     // MARK: Properties
 
-    var fetchedResultsController: NSFetchedResultsController?
+    var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>?
     
     let operationQueue = OperationQueue()
     
@@ -24,8 +24,8 @@ class EarthquakesTableViewController: UITableViewController {
 
         let operation = LoadModelOperation { context in
             // Now that we have a context, build our `FetchedResultsController`.
-            dispatch_async(dispatch_get_main_queue()) {
-                let request = NSFetchRequest(entityName: Earthquake.entityName)
+            DispatchQueue.main.async {
+                let request = NSFetchRequest<NSFetchRequestResult>(entityName: Earthquake.entityName)
 
                 request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
                 
@@ -42,27 +42,27 @@ class EarthquakesTableViewController: UITableViewController {
         operationQueue.addOperation(operation)
     }
 
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    override func numberOfSections(in tableView: UITableView) -> Int {
         return fetchedResultsController?.sections?.count ?? 0
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         let section = fetchedResultsController?.sections?[section]
 
         return section?.numberOfObjects ?? 0
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("earthquakeCell", forIndexPath: indexPath) as! EarthquakeTableViewCell
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "earthquakeCell", for: indexPath) as! EarthquakeTableViewCell
         
-        if let earthquake = fetchedResultsController?.objectAtIndexPath(indexPath) as? Earthquake {
+        if let earthquake = fetchedResultsController?.object(at: indexPath) as? Earthquake {
             cell.configure(earthquake)
         }
 
         return cell
     }
     
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         /*
             Instead of performing the segue directly, we can wrap it in a `BlockOperation`.
             This allows us to attach conditions to the operation. For example, you
@@ -81,8 +81,8 @@ class EarthquakesTableViewController: UITableViewController {
             to the user about why you were unable to perform the requested action.
         */
         
-        let operation = BlockOperation {
-            self.performSegueWithIdentifier("showEarthquake", sender: nil)
+        let operation = BlockOperation { (function) in
+            self.performSegue(withIdentifier: "showEarthquake", sender: nil)
         }
         
         operation.addCondition(MutuallyExclusive<UIViewController>())
@@ -93,8 +93,8 @@ class EarthquakesTableViewController: UITableViewController {
                 isn't going to happen. We shouldn't leave the row selected.
             */
             if !errors.isEmpty {
-                dispatch_async(dispatch_get_main_queue()) {
-                    tableView.deselectRowAtIndexPath(indexPath, animated: true)
+                DispatchQueue.main.async {
+                    tableView.deselectRow(at: indexPath, animated: true)
                 }
             }
         }
@@ -104,26 +104,26 @@ class EarthquakesTableViewController: UITableViewController {
         operationQueue.addOperation(operation)
     }
     
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        guard let navigationVC = segue.destinationViewController as? UINavigationController,
-                  detailVC = navigationVC.viewControllers.first as? EarthquakeTableViewController else {
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        guard let navigationVC = segue.destination as? UINavigationController,
+                  let detailVC = navigationVC.viewControllers.first as? EarthquakeTableViewController else {
             return
         }
         detailVC.queue = operationQueue
 
         if let indexPath = tableView.indexPathForSelectedRow {
-            detailVC.earthquake = fetchedResultsController?.objectAtIndexPath(indexPath) as? Earthquake
+            detailVC.earthquake = fetchedResultsController?.object(at: indexPath) as? Earthquake
         }
     }
     
-    @IBAction func startRefreshing(sender: UIRefreshControl) {
+    @IBAction func startRefreshing(_ sender: UIRefreshControl) {
         getEarthquakes()
     }
     
-    private func getEarthquakes(userInitiated: Bool = true) {
+    fileprivate func getEarthquakes(_ userInitiated: Bool = true) {
         if let context = fetchedResultsController?.managedObjectContext {
             let getEarthquakesOperation = GetEarthquakesOperation(context: context) {
-                dispatch_async(dispatch_get_main_queue()) {
+                DispatchQueue.main.async {
                     self.refreshControl?.endRefreshing()
                     self.updateUI()
                 }
@@ -137,14 +137,14 @@ class EarthquakesTableViewController: UITableViewController {
                 We don't have a context to operate on, so wait a bit and just make
                 the refresh control end.
             */
-            let when = dispatch_time(DISPATCH_TIME_NOW, Int64(0.3 * Double(NSEC_PER_SEC)))
-            dispatch_after(when, dispatch_get_main_queue()) {
+            let when = DispatchTime.now() + Double(Int64(0.3 * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC)
+            DispatchQueue.main.asyncAfter(deadline: when) {
                 self.refreshControl?.endRefreshing()
             }
         }
     }
     
-    private func updateUI() {
+    fileprivate func updateUI() {
         do {
             try fetchedResultsController?.performFetch()
         }
